@@ -1,10 +1,12 @@
 #include "loader.h"
 #include "defs.h"
 #include "trap.h"
+#include "proc.h"
 
 static uint64 app_num;
 static uint64 *app_info_ptr;
 extern char _app_num[], ekernel[];
+extern struct proc *runnable_proc;
 
 // Count finished programs. If all apps exited, shutdown.
 int finished()
@@ -44,7 +46,6 @@ int run_all_app()
 		 * 进程加载时，初始化的进程控制块中，进程状态，进程id，进程内核栈，context的返回地址和栈是有用的
 		 */
 		struct proc *p = allocproc();
-
 		struct trapframe *trapframe = p->trapframe;
 		load_app(i, app_info_ptr);
 		uint64 entry = BASE_ADDRESS + i * MAX_APP_SIZE;
@@ -57,6 +58,7 @@ int run_all_app()
 		trapframe->epc = entry;
 		trapframe->sp = (uint64)p->ustack + USER_STACK_SIZE;
 		p->state = RUNNABLE;
+		push_runnable_proc(p);
 		/*
 		* LAB1: you may need to initialize your new fields of proc here
 		*/

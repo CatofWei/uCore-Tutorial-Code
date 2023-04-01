@@ -50,6 +50,7 @@ struct proc {
 	uint64 kstack; // 进程内核栈虚拟地址(内核页表)，从代码看这是栈底
 	struct trapframe *trapframe; // data page for trampoline.S，进程中断帧
 	struct context context; // swtch() here to run process，用于保存进程内核态的寄存器信息，进程切换时使用
+	struct proc *next;
 	/*
 	* LAB1: you may need to add some new fields here
 	*/
@@ -63,8 +64,12 @@ struct proc *curr_proc();
 void exit(int);
 void proc_init();
 void scheduler() __attribute__((noreturn));
+void schedulerV2(enum procstate nextstatus);
 void sched();
 void yield();
+void idleLoop();
+void push_runnable_proc(struct proc * n);
+struct proc* pop_runnable_proc();
 struct proc *allocproc();
 // swtch.S
 void swtch(struct context *, struct context *);

@@ -21,5 +21,6 @@ void main()
 	run_all_app();
 	infof("start scheduler!");
 	printf("start to schuduler proc\n");
-	scheduler();
+	idleLoop();
+//	scheduler();
 }
