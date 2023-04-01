@@ -7,7 +7,13 @@
 
 // Saved registers for kernel context switches.
 struct context {
+	/**
+	 * 进程切换时的返回地址，返回后仍处于内核态
+	 */
 	uint64 ra;
+	/**
+	 * 内核栈顶
+	 */
 	uint64 sp;
 
 	// callee-saved
@@ -25,16 +31,25 @@ struct context {
 	uint64 s11;
 };
 
-enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
-
+enum procstate {
+UNUSED,     // 未初始化
+USED,       // 基本初始化，未加载用户程序
+SLEEPING,   // 休眠状态(未使用，留待后续拓展)
+RUNNABLE,   // 可运行
+RUNNING,    // 当前正在运行
+ZOMBIE,     // 已经 exit
+};
+/**
+ * 进程控制块，保存着一个进程的信息
+ */
 // Per-process state
 struct proc {
-	enum procstate state; // Process state
-	int pid; // Process ID
-	uint64 ustack; // Virtual address of user stack
-	uint64 kstack; // Virtual address of kernel stack
-	struct trapframe *trapframe; // data page for trampoline.S
-	struct context context; // swtch() here to run process
+	enum procstate state; // 进程状态
+	int pid; // 进程ID
+	uint64 ustack; // 进程用户栈虚拟地址(用户页表)，从代码看这是栈底
+	uint64 kstack; // 进程内核栈虚拟地址(内核页表)，从代码看这是栈底
+	struct trapframe *trapframe; // data page for trampoline.S，进程中断帧
+	struct context context; // swtch() here to run process，用于保存进程内核态的寄存器信息，进程切换时使用
 	/*
 	* LAB1: you may need to add some new fields here
 	*/

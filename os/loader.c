@@ -40,11 +40,20 @@ int load_app(int n, uint64 *info)
 int run_all_app()
 {
 	for (int i = 0; i < app_num; ++i) {
+		/**
+		 * 进程加载时，初始化的进程控制块中，进程状态，进程id，进程内核栈，context的返回地址和栈是有用的
+		 */
 		struct proc *p = allocproc();
+
 		struct trapframe *trapframe = p->trapframe;
 		load_app(i, app_info_ptr);
 		uint64 entry = BASE_ADDRESS + i * MAX_APP_SIZE;
 		tracef("load app %d at %p", i, entry);
+		/**
+		 * context结构体，保存的是进程切换时，新进程在内核态的返回地址和内核栈，以及寄存器（暗含的意思时进程切换时
+		 * 先返回新进程的内核态，再返回到用户态执行）
+		 * trapframe中的则是进程在用户态的返回地址，用户栈，和寄存器
+		 */
 		trapframe->epc = entry;
 		trapframe->sp = (uint64)p->ustack + USER_STACK_SIZE;
 		p->state = RUNNABLE;

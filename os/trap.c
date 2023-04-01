@@ -50,10 +50,12 @@ void usertrap()
 		panic("usertrap: not from user mode");
 
 	uint64 cause = r_scause();
+	// 检查是否为中断
 	if (cause & (1ULL << 63)) {
 		cause &= ~(1ULL << 63);
 		switch (cause) {
 		case SupervisorTimer:
+			printf("time interrupt!\n");
 			tracef("time interrupt!\n");
 			set_next_timer();
 			yield();
@@ -96,6 +98,7 @@ void usertrap()
 //
 void usertrapret()
 {
+	//设置用户进程的trap处理函数
 	set_usertrap();
 	struct trapframe *trapframe = curr_proc()->trapframe;
 	trapframe->kernel_satp = r_satp(); // kernel page table
@@ -116,5 +119,6 @@ void usertrapret()
 
 	// tell trampoline.S the user page table to switch to.
 	// uint64 satp = MAKE_SATP(p->pagetable);
+	// 此时trapframe->sp 指向用户栈，epc指向用户程序入口，SSP字段为0，current_proc指向用户程序控制块
 	userret((uint64)trapframe);
 }

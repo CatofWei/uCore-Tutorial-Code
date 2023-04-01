@@ -2,13 +2,22 @@
 #include "defs.h"
 #include "loader.h"
 #include "trap.h"
-
+/**
+ * 预先分配好的进程表，包含NPROC个进程控制块，表示该操作系统最多运行NPROC个进程
+ */
 struct proc pool[NPROC];
+/**
+ * 预分配的内核栈
+ */
 char kstack[NPROC][PAGE_SIZE];
+/**
+ * 预分配的用户栈
+ */
 __attribute__((aligned(4096))) char ustack[NPROC][PAGE_SIZE];
 __attribute__((aligned(4096))) char trapframe[NPROC][PAGE_SIZE];
 
 extern char boot_stack_top[];
+// 当前执行的进程
 struct proc *current_proc;
 struct proc idle;
 
@@ -26,6 +35,9 @@ struct proc *curr_proc()
 void proc_init(void)
 {
 	struct proc *p;
+	/**
+	 * 初始化进程控制块
+	 */
 	for (p = pool; p < &pool[NPROC]; p++) {
 		p->state = UNUSED;
 		p->kstack = (uint64)kstack[p - pool];
@@ -35,6 +47,7 @@ void proc_init(void)
 		* LAB1: you may need to initialize your new fields of proc here
 		*/
 	}
+	// idle为内核创建的系统闲置进程，开内核启动的开始阶段，都是idle进程在运行
 	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = 0;
 	current_proc = &idle;
@@ -65,7 +78,9 @@ found:
 	memset(&p->context, 0, sizeof(p->context));
 	memset(p->trapframe, 0, PAGE_SIZE);
 	memset((void *)p->kstack, 0, PAGE_SIZE);
+	// 进程切换时的返回地址
 	p->context.ra = (uint64)usertrapret;
+	// 进程切换时的栈
 	p->context.sp = p->kstack + PAGE_SIZE;
 	return p;
 }
@@ -80,11 +95,14 @@ void scheduler(void)
 	struct proc *p;
 	for (;;) {
 		for (p = pool; p < &pool[NPROC]; p++) {
+			// 选择就绪态的进程
 			if (p->state == RUNNABLE) {
 				/*
 				* LAB1: you may need to init proc start time here
 				*/
+				// 设置状态为running
 				p->state = RUNNING;
+				// 指向新进程
 				current_proc = p;
 				swtch(&idle.context, &p->context);
 			}

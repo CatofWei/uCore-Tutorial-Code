@@ -3,7 +3,7 @@
 #   void swtch(struct context *old, struct context *new);
 #
 # Save current registers in old. Load from new.
-
+# a0 = &old_context, a1 = &new_context
 
 .globl swtch
 swtch:
@@ -36,5 +36,5 @@ swtch:
         ld s9, 88(a1)
         ld s10, 96(a1)
         ld s11, 104(a1)
-
         ret
+        # 返回之后，pc寄存器指向usertrapret函数，sp寄存器指向用户进程的内核栈，current_prco指向用户进程的控制块
