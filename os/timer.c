@@ -7,6 +7,10 @@ uint64 get_cycle()
 {
 	return r_time();
 }
+uint64 getTimeMilli() {
+	uint64 cycle = get_cycle();
+	return (cycle*1000) / CPU_FREQ;
+}
 
 /// Enable timer interrupt
 void timer_init()

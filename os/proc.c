@@ -2,6 +2,7 @@
 #include "defs.h"
 #include "loader.h"
 #include "trap.h"
+#include "timer.h"
 /**
  * 预先分配好的进程表，包含NPROC个进程控制块，表示该操作系统最多运行NPROC个进程
  */
@@ -34,6 +35,7 @@ struct proc *curr_proc()
 // initialize the proc table at boot time.
 void proc_init(void)
 {
+	printf("size of proc %d\n", sizeof(struct proc));
 	struct proc *p;
 	/**
 	 * 初始化进程控制块
@@ -46,6 +48,7 @@ void proc_init(void)
 		/*
 		* LAB1: you may need to initialize your new fields of proc here
 		*/
+		memset(&p->syscall_times, 0, sizeof(p->syscall_times));
 	}
 	// idle为内核创建的系统闲置进程，开内核启动的开始阶段，都是idle进程在运行
 	idle.kstack = (uint64)boot_stack_top;
@@ -100,6 +103,10 @@ void scheduler(void)
 				/*
 				* LAB1: you may need to init proc start time here
 				*/
+				if (p->startTimeStamp == 0) {
+					p->startTimeStamp = getTimeMilli();
+					printf("start time %d, pid %d\n", p->startTimeStamp, p->pid);
+				}
 				// 设置状态为running
 				p->state = RUNNING;
 				// 指向新进程
