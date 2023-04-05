@@ -45,6 +45,7 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 	// 对齐到下一页
 	end = PGROUNDUP(end);
 	uint64 length = end - start;
+	printf("pid=%d, load program length=%p\n", p->pid, length);
 	// 用户程序放在虚拟地址0x1000上
 	if (mappages(pg, BASE_ADDRESS, length, start,
 		     PTE_U | PTE_R | PTE_W | PTE_X) != 0) {

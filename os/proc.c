@@ -4,6 +4,10 @@
 #include "trap.h"
 #include "vm.h"
 
+#include "timer.h"
+/**
+ * 预先分配好的进程表，包含NPROC个进程控制块，表示该操作系统最多运行NPROC个进程
+ */
 struct proc pool[NPROC];
 __attribute__((aligned(16))) char kstack[NPROC][PAGE_SIZE];
 __attribute__((aligned(4096))) char trapframe[NPROC][TRAP_PAGE_SIZE];
@@ -25,6 +29,7 @@ struct proc *curr_proc()
 // initialize the proc table at boot time.
 void proc_init(void)
 {
+	printf("size of proc %d\n", sizeof(struct proc));
 	struct proc *p;
 	for (p = pool; p < &pool[NPROC]; p++) {
 		p->state = UNUSED;
@@ -33,6 +38,7 @@ void proc_init(void)
 		/*
 		* LAB1: you may need to initialize your new fields of proc here
 		*/
+		memset(&p->syscall_times, 0, sizeof(p->syscall_times));
 	}
 	// 这行感觉没啥用，idle进程不在这里保存栈
 //	idle.kstack = (uint64)boot_stack_top;
@@ -87,6 +93,11 @@ void scheduler(void)
 				/*
 				* LAB1: you may need to init proc start time here
 				*/
+				if (p->startTimeStamp == 0) {
+					p->startTimeStamp = getTimeMilli();
+					printf("start time %d, pid %d\n", p->startTimeStamp, p->pid);
+				}
+				// 设置状态为running
 				p->state = RUNNING;
 				current_proc = p;
 				swtch(&idle.context, &p->context);
@@ -120,7 +131,8 @@ void yield(void)
 void freeproc(struct proc *p)
 {
 	p->state = UNUSED;
-	// uvmfree(p->pagetable, p->max_page);
+	// 目前应用程序实际是放在内核数据段中，所以不能free，
+//	uvmfree(p->pagetable, p->max_page);
 }
 
 // Exit the current process.

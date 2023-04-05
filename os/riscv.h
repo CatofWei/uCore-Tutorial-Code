@@ -278,6 +278,13 @@ static inline uint64 r_ra()
 	asm volatile("mv %0, ra" : "=r"(x));
 	return x;
 }
+
+static inline uint64 r_a0() {
+	uint64 x;
+	asm volatile("mv %0, a0"
+		        : "=r"(x));
+	return x;
+};
 // 刷新所有缓存
 // flush the TLB.
 static inline void sfence_vma()
