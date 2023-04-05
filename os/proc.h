@@ -8,8 +8,8 @@
 
 // Saved registers for kernel context switches.
 struct context {
-	uint64 ra;
-	uint64 sp;
+	uint64 ra;   // 这里的ra 和 sp 必须使用内核页表访问
+	uint64 sp;   // 因为ra和sp位于内核地址空间
 
 	// callee-saved
 	uint64 s0;
@@ -33,8 +33,8 @@ struct proc {
 	enum procstate state; // Process state
 	int pid; // Process ID
 	pagetable_t pagetable; // User page table
-	uint64 ustack;
-	uint64 kstack; // Virtual address of kernel stack
+	uint64 ustack;     //virtial address of user stack bottom(bottom 是栈的低地址)
+	uint64 kstack; // Virtual address of kernel stack bottom
 	struct trapframe *trapframe; // data page for trampoline.S
 	struct context context; // swtch() here to run process
 	uint64 max_page;

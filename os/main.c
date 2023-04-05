@@ -14,9 +14,9 @@ void clean_bss()
 void main()
 {
 	clean_bss();
-	printf("hello world!\n");
 	proc_init();
 	kinit();
+	// 由于内核页表是恒等映射，所以开启分页前后没有变化,内核还是能正常访问整个物理内存
 	kvm_init();
 	loader_init();
 	trap_init();

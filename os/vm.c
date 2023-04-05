@@ -6,12 +6,14 @@ pagetable_t kernel_pagetable;
 
 extern char e_text[]; // kernel.ld sets this to end of kernel code.
 extern char trampoline[];
-
+// 建立内核页表,恒等映射，注意权限控制，该页表的虚拟地址不允许用户访问
 // Make a direct-map page table for the kernel.
 pagetable_t kvmmake(void)
 {
 	pagetable_t kpgtbl;
+	// 分配一级页表的物理页
 	kpgtbl = (pagetable_t)kalloc();
+	// 清零
 	memset(kpgtbl, 0, PGSIZE);
 	// map kernel text executable and read-only.
 	kvmmap(kpgtbl, KERNBASE, KERNBASE, (uint64)e_text - KERNBASE,
@@ -19,6 +21,7 @@ pagetable_t kvmmake(void)
 	// map kernel data and the physical RAM we'll make use of.
 	kvmmap(kpgtbl, (uint64)e_text, (uint64)e_text, PHYSTOP - (uint64)e_text,
 	       PTE_R | PTE_W);
+	// 将trap上下文切换所用的跳板代码放在虚拟地址的最高一页
 	kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 	return kpgtbl;
 }
@@ -29,11 +32,12 @@ pagetable_t kvmmake(void)
 void kvm_init(void)
 {
 	kernel_pagetable = kvmmake();
+	printf("enable page\n");
 	w_satp(MAKE_SATP(kernel_pagetable));
 	sfence_vma();
 	infof("enable pageing at %p", r_satp());
 }
-
+// 获取虚拟地址所对应的在第三级页表上的页表项，
 // Return the address of the PTE in page table pagetable
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page-table pages.
@@ -56,7 +60,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 		if (*pte & PTE_V) {
 			pagetable = (pagetable_t)PTE2PA(*pte);
 		} else {
-			if (!alloc || (pagetable = (pde_t *)kalloc()) == 0)
+			if (!alloc || (pagetable = (pagetable_t)kalloc()) == 0)
 				return 0;
 			memset(pagetable, 0, PGSIZE);
 			*pte = PA2PTE(pagetable) | PTE_V;
@@ -64,7 +68,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 	}
 	return &pagetable[PX(0, va)];
 }
-
+// 查找 虚拟地址所在的物理页的起始地址
 // Look up a virtual address, return the physical address,
 // or 0 if not mapped.
 // Can only be used to look up user pages.
@@ -86,7 +90,7 @@ uint64 walkaddr(pagetable_t pagetable, uint64 va)
 	pa = PTE2PA(*pte);
 	return pa;
 }
-
+// 这才是虚拟地址转物理地址
 // Look up a virtual address, return the physical address,
 uint64 useraddr(pagetable_t pagetable, uint64 va)
 {
@@ -109,6 +113,7 @@ void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
 // physical addresses starting at pa. va and size might not
 // be page-aligned. Returns 0 on success, -1 if walk() couldn't
 // allocate a needed page-table page.
+//将与[va,va+size)存在重叠的n个虚拟页面，按照顺序映射到从pa所在物理页面开始的n个页
 int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {
 	uint64 a, last;
@@ -119,6 +124,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 	for (;;) {
 		if ((pte = walk(pagetable, a, 1)) == 0)
 			return -1;
+		//若该虚拟页已经映射过了，则返回，这样会出现第一个物理页映射成功，第二个却发现映射过了
 		if (*pte & PTE_V) {
 			errorf("remap");
 			return -1;
@@ -144,11 +150,14 @@ void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 		panic("uvmunmap: not aligned");
 
 	for (a = va; a < va + npages * PGSIZE; a += PGSIZE) {
+		// 若本就无映射，跳过
 		if ((pte = walk(pagetable, a, 0)) == 0)
 			continue;
+		// 存在映射
 		if ((*pte & PTE_V) != 0) {
 			if (PTE_FLAGS(*pte) == PTE_V)
 				panic("uvmunmap: not a leaf");
+			// 由于可能存在共享的内存，因此不一定需要释放物理页
 			if (do_free) {
 				uint64 pa = PTE2PA(*pte);
 				kfree((void *)pa);
@@ -169,6 +178,7 @@ pagetable_t uvmcreate()
 		return 0;
 	}
 	memset(pagetable, 0, PGSIZE);
+	// 跳板代码映射到用户地址空间的最高一页，注意权限控制，跳板代码在用户态是不能访问的
 	if (mappages(pagetable, TRAMPOLINE, PAGE_SIZE, (uint64)trampoline,
 		     PTE_R | PTE_X) < 0) {
 		kfree(pagetable);

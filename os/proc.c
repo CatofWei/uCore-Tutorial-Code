@@ -34,7 +34,8 @@ void proc_init(void)
 		* LAB1: you may need to initialize your new fields of proc here
 		*/
 	}
-	idle.kstack = (uint64)boot_stack_top;
+	// 这行感觉没啥用，idle进程不在这里保存栈
+//	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = 0;
 	current_proc = &idle;
 }

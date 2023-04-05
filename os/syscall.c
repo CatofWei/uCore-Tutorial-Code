@@ -12,6 +12,7 @@ uint64 sys_write(int fd, uint64 va, uint len)
 		return -1;
 	struct proc *p = curr_proc();
 	char str[MAX_STR_LEN];
+	// 将虚拟地址va开始处的字符数据写入内核缓冲。
 	int size = copyinstr(p->pagetable, str, va, MIN(len, MAX_STR_LEN));
 	debugf("size = %d", size);
 	for (int i = 0; i < size; ++i) {

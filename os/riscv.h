@@ -278,7 +278,7 @@ static inline uint64 r_ra()
 	asm volatile("mv %0, ra" : "=r"(x));
 	return x;
 }
-
+// 刷新所有缓存
 // flush the TLB.
 static inline void sfence_vma()
 {
@@ -294,9 +294,9 @@ static inline void sfence_vma()
 #define PGALIGNED(a) (((a) & (PGSIZE - 1)) == 0)
 
 #define PTE_V (1L << 0) // valid
-#define PTE_R (1L << 1)
-#define PTE_W (1L << 2)
-#define PTE_X (1L << 3)
+#define PTE_R (1L << 1) // readable
+#define PTE_W (1L << 2) // writeable
+#define PTE_X (1L << 3) //executable
 #define PTE_U (1L << 4) // 1 -> user can access
 
 // shift a physical address to the right place for a PTE.
@@ -316,9 +316,10 @@ static inline void sfence_vma()
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
-
+// 页表项
 typedef uint64 pte_t;
 typedef uint64 pde_t;
+// 页表指针，指向一个包含512个项的页表
 typedef uint64 *pagetable_t; // 512 PTEs
 
 #endif // RISCV_H

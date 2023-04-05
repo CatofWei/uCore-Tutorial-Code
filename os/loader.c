@@ -22,10 +22,14 @@ void loader_init()
 	app_num = *app_info_ptr;
 	app_info_ptr++;
 }
-
+/**
+ * 应用地址空间布局
+ */
 pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 {
+
 	pagetable_t pg = uvmcreate();
+	// trapframe为内核数据结构
 	if (mappages(pg, TRAPFRAME, PGSIZE, (uint64)p->trapframe,
 		     PTE_R | PTE_W) < 0) {
 		panic("mappages fail");
@@ -38,23 +42,30 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 		warnf("Some kernel data maybe mapped to user, start = %p, end = %p",
 		      start, end);
 	}
+	// 对齐到下一页
 	end = PGROUNDUP(end);
 	uint64 length = end - start;
+	// 用户程序放在虚拟地址0x1000上
 	if (mappages(pg, BASE_ADDRESS, length, start,
 		     PTE_U | PTE_R | PTE_W | PTE_X) != 0) {
 		panic("mappages fail");
 	}
 	p->pagetable = pg;
+	// 虚拟地址空间布局，
 	uint64 ustack_bottom_vaddr = BASE_ADDRESS + length + PAGE_SIZE;
 	if (USTACK_SIZE != PAGE_SIZE) {
 		// Fix in ch5
 		panic("Unsupported");
 	}
+	// 用户栈在地址空间中和用户内存隔着一页
 	mappages(pg, ustack_bottom_vaddr, USTACK_SIZE, (uint64)kalloc(),
 		 PTE_U | PTE_R | PTE_W | PTE_X);
 	p->ustack = ustack_bottom_vaddr;
+	// 应用程序入口地址为虚拟地址0x1000
 	p->trapframe->epc = BASE_ADDRESS;
+	// 用户栈
 	p->trapframe->sp = p->ustack + USTACK_SIZE;
+	// exit 的时候会 unmap 页表中 [BASE_ADDRESS, max_page * PAGE_SIZE) 的页
 	p->max_page = PGROUNDUP(p->ustack + USTACK_SIZE - 1) / PAGE_SIZE;
 	return pg;
 }
