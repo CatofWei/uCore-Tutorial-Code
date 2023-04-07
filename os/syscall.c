@@ -82,6 +82,7 @@ uint64 sys_exec(uint64 va)
 	char name[200];
 	copyinstr(p->pagetable, name, va, 200);
 	debugf("sys_exec %s\n", name);
+	printf("pid=%d, exec %s\n", curr_proc()->pid, name);
 	return exec(name);
 }
 
@@ -94,8 +95,22 @@ uint64 sys_wait(int pid, uint64 va)
 
 uint64 sys_spawn(uint64 va)
 {
-	// TODO: your job is to complete the sys call
-	return -1;
+	struct proc * np = allocproc();
+	if(np == 0) {
+		panic("allocproc error!\n");
+	}
+	char fileName[100];
+	copyinstr(curr_proc()->pagetable, fileName, va, 100);
+	printf("pid=%d, spawn file %s\n", curr_proc()->pid, fileName);
+	int id = get_id_by_name(fileName);
+	if (id < 0) {
+		return -1;
+	}
+	loader(id, np);
+	np->parent = curr_proc();
+	np->state = RUNNABLE;
+	add_task(np);
+	return np->pid;
 }
 
 uint64 sys_set_priority(long long prio){

@@ -216,6 +216,7 @@ void uvmfree(pagetable_t pagetable, uint64 max_page)
 // Used in fork.
 // Copy the pagetable page and all the user pages.
 // Return 0 on success, -1 on error.
+// 遍历父进程的所有用户态的页，并拷贝到新的物理页，然后在子进程上建立地址空间到copy物理页的相同映射
 int uvmcopy(pagetable_t old, pagetable_t new, uint64 max_page)
 {
 	pte_t *pte;
@@ -239,7 +240,7 @@ int uvmcopy(pagetable_t old, pagetable_t new, uint64 max_page)
 		}
 	}
 	return 0;
-
+// fork过程出现错误，接触已经分配的内存
 err:
 	uvmunmap(new, 0, i / PGSIZE, 1);
 	return -1;

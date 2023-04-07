@@ -44,6 +44,7 @@ int bin_loader(uint64 start, uint64 end, struct proc *p)
 	uint64 length = pa_end - pa_start;
 	uint64 va_start = BASE_ADDRESS;
 	uint64 va_end = BASE_ADDRESS + length;
+	printf("pid=%d,unsigned size %p\n", p->pid, pa_start - start);
 	for (uint64 va = va_start, pa = pa_start; pa < pa_end;
 	     va += PGSIZE, pa += PGSIZE) {
 		page = kalloc();
@@ -82,6 +83,7 @@ int bin_loader(uint64 start, uint64 end, struct proc *p)
 
 int loader(int app_id, struct proc *p)
 {
+	printf("pid=%d, load app id=%d\n", curr_proc()->pid, app_id);
 	return bin_loader(app_info_ptr[app_id], app_info_ptr[app_id + 1], p);
 }
 

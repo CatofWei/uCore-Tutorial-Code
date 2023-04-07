@@ -16,6 +16,7 @@ if __name__ == '__main__':
 '''    .align 4
     .section .data
     .global _app_num
+    
 _app_num:
     .quad {}
 '''.format(len(apps))

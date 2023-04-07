@@ -21,6 +21,7 @@ void main()
 	loader_init();
 	trap_init();
 	timer_init();
+	// 加载第一个app，这里是usershell
 	load_init_app();
 	infof("start scheduler!");
 	scheduler();

@@ -118,7 +118,6 @@ void scheduler()
 		if (p == NULL) {
 			panic("all app are over!\n");
 		}
-		tracef("swtich to proc %d", p - pool);
 		p->state = RUNNING;
 		current_proc = p;
 		swtch(&idle.context, &p->context);
@@ -170,6 +169,7 @@ int fork()
 	struct proc *np;
 	struct proc *p = curr_proc();
 	// Allocate process.
+	// 分配一个进程控制块
 	if ((np = allocproc()) == 0) {
 		panic("allocproc\n");
 	}
@@ -185,11 +185,14 @@ int fork()
 	np->parent = p;
 	np->state = RUNNABLE;
 	add_task(np);
+	// 子进程 系统调用后返回0，父进程返回子进程pid
+	// 这里细节来看，fork出的子进程，context上下文返回地址是usertrapret，父进程则是正常返回系统调用
 	return np->pid;
 }
 
 int exec(char *name)
 {
+	printf("pid %d exec app %s\n", curr_proc()->pid, name);
 	int id = get_id_by_name(name);
 	if (id < 0)
 		return -1;
@@ -197,6 +200,7 @@ int exec(char *name)
 	uvmunmap(p->pagetable, 0, p->max_page, 1);
 	p->max_page = 0;
 	loader(id, p);
+	printf("from exec\n");
 	return 0;
 }
 
