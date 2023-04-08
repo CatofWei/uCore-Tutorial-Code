@@ -24,7 +24,7 @@
 // super block describes the disk layout:
 struct superblock {
 	uint magic; // Must be FSMAGIC
-	uint size; // Size of file system image (blocks)
+	uint size; // Size of file system image (blocks),文件系统的总块数。注意这并不等同于所在磁盘的总块数，因为文件系统很可能并没有占据整个磁盘
 	uint nblocks; // Number of data blocks
 	uint ninodes; // Number of inodes.
 	uint inodestart; // Block number of first inode block

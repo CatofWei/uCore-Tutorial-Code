@@ -25,7 +25,7 @@ void set_kerneltrap()
 // set up to take exceptions and traps while in the kernel.
 void trap_init()
 {
-	// intr_on();
+//	 intr_on();
 	set_kerneltrap();
 	w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
 }
@@ -42,7 +42,8 @@ void devintr(uint64 cause)
 	switch (cause) {
 	case SupervisorTimer:
 		set_next_timer();
-		// if form user, allow yield
+		// 时钟中断如果发生在内核态，不切换进程，原因分析在下面
+		// 如果发生在用户态，照常处理
 		if ((r_sstatus() & SSTATUS_SPP) == 0) {
 			yield();
 		}
@@ -141,6 +142,7 @@ void usertrapret()
 
 void kerneltrap()
 {
+	printf("kerneltrap\n");
 	uint64 sepc = r_sepc();
 	uint64 sstatus = r_sstatus();
 	uint64 scause = r_scause();

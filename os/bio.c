@@ -28,6 +28,7 @@ struct {
 void binit()
 {
 	struct buf *b;
+	// 将缓存磁盘块缓存结构组织成一个双向链表
 	// Create linked list of buffers
 	bcache.head.prev = &bcache.head;
 	bcache.head.next = &bcache.head;
@@ -45,12 +46,14 @@ static struct buf *bget(uint dev, uint blockno)
 {
 	struct buf *b;
 	// Is the block already cached?
+	// 首先查询该磁盘块是否已经缓存
 	for (b = bcache.head.next; b != &bcache.head; b = b->next) {
 		if (b->dev == dev && b->blockno == blockno) {
 			b->refcnt++;
 			return b;
 		}
 	}
+	//
 	// Not cached.
 	// Recycle the least recently used (LRU) unused buffer.
 	for (b = bcache.head.prev; b != &bcache.head; b = b->prev) {

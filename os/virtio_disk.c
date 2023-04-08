@@ -69,6 +69,7 @@ static struct disk {
 	struct virtio_blk_req ops[NUM];
 } __attribute__((aligned(PGSIZE))) disk;
 
+// 初始化磁盘设备
 void virtio_disk_init()
 {
 	uint32 status = 0;
@@ -189,15 +190,17 @@ static int alloc3_desc(int *idx)
 }
 
 extern int PID;
-
+// 从磁盘读取数据到缓存块，或将缓存块的数据写入磁盘
 void virtio_disk_rw(struct buf *b, int write)
 {
+	// 磁盘块和扇区不等价，这里一个扇区为512B，而磁盘块为1024B
 	uint64 sector = b->blockno * (BSIZE / 512);
 	// the spec's Section 5.2 says that legacy block operations use
 	// three descriptors: one for type/reserved/sector, one for the
 	// data, one for a 1-byte status result.
 	// allocate the three descriptors.
 	int idx[3];
+	// 这里和磁盘驱动有关，总之循环直到拿到3个desc
 	while (1) {
 		if (alloc3_desc(idx) == 0) {
 			break;
@@ -206,6 +209,7 @@ void virtio_disk_rw(struct buf *b, int write)
 	}
 	// format the three descriptors.
 	// qemu's virtio-blk.c reads them.
+	// 构造一个磁盘读写请求，包含action（读或写），扇区号
 	struct virtio_blk_req *buf0 = &disk.ops[idx[0]];
 
 	if (write)
@@ -214,22 +218,23 @@ void virtio_disk_rw(struct buf *b, int write)
 		buf0->type = VIRTIO_BLK_T_IN; // read the disk
 	buf0->reserved = 0;
 	buf0->sector = sector;
-
+	//  通过第一个desc将请求传给设备
 	disk.desc[idx[0]].addr = (uint64)buf0;
 	disk.desc[idx[0]].len = sizeof(struct virtio_blk_req);
 	disk.desc[idx[0]].flags = VRING_DESC_F_NEXT;
 	disk.desc[idx[0]].next = idx[1];
 
+	// 通过第二个desc将缓存块和大小告诉设备
 	disk.desc[idx[1]].addr = (uint64)b->data;
 	disk.desc[idx[1]].len = BSIZE;
 	if (write)
 		disk.desc[idx[1]].flags = 0; // device reads b->data
 	else
 		disk.desc[idx[1]].flags =
-			VRING_DESC_F_WRITE; // device writes b->data
+			VRING_DESC_F_WRITE; // device writes b->data，设备将数据写入缓存，从我们角度看就是读取设备
 	disk.desc[idx[1]].flags |= VRING_DESC_F_NEXT;
 	disk.desc[idx[1]].next = idx[2];
-
+	// 通过第三个desc，告诉磁盘将请求结果写在什么位置
 	disk.info[idx[0]].status = 0xfb; // device writes 0 on success
 	disk.desc[idx[2]].addr = (uint64)&disk.info[idx[0]].status;
 	disk.desc[idx[2]].len = 1;
@@ -256,8 +261,12 @@ void virtio_disk_rw(struct buf *b, int write)
 	// Wait for virtio_disk_intr() to say request has finished.
 	// Make sure complier will load 'b' form memory
 	struct buf volatile *_b = b;
+	//当设定好读写信息后会通过 MMIO 的方式通知磁盘开始写。然后，os 会开启中断并开始死等磁盘读写完成。
+	// 当磁盘完成 IO 后，磁盘会触发一个外部中断，在中断处理中会把死循环条件解除。
+	// 内核态只会在处理磁盘读写的时候短暂开启中断，之后会马上关闭
 	intr_on();
 	while (_b->disk == 1) {
+
 		// WARN: No kernel concurrent support, DO NOT allow kernel yield
 		// yield();
 	}

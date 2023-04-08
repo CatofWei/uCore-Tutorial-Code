@@ -20,12 +20,22 @@
 // only one device
 struct superblock sb;
 
+void printsb(struct superblock *sb) {
+	printf("fs size: %d\n", sb->size);
+	printf("number of inodes: %d\n", sb->ninodes);
+	printf("number of nblocks: %d\n", sb->nblocks);
+	printf("first inode block: %d\n", sb->inodestart);
+	printf("first bitmap block: %d\n", sb->bmapstart);
+
+}
 // Read the super block.
 static void readsb(int dev, struct superblock *sb)
 {
+	printf("readsb in dev: %d\n", dev);
 	struct buf *bp;
 	bp = bread(dev, 1);
 	memmove(sb, bp->data, sizeof(*sb));
+	printsb(sb);
 	brelse(bp);
 }
 
