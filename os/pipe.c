@@ -41,6 +41,7 @@ void pipeclose(struct pipe *pi, int writable)
 
 int pipewrite(struct pipe *pi, uint64 addr, int n)
 {
+	// w 记录已经写的字节数
 	int w = 0;
 	uint64 size;
 	struct proc *p = curr_proc();
@@ -52,8 +53,10 @@ int pipewrite(struct pipe *pi, uint64 addr, int n)
 			return -1;
 		}
 		if (pi->nwrite == pi->nread + PIPESIZE) { // DOC: pipewrite-full
+			// pipe write 端已满，阻塞
 			yield();
 		} else {
+			// 一次读的 size 为 min(用户buffer剩余，pipe 剩余写容量，pipe 剩余线性容量)
 			size = MIN(MIN(n - w,
 				       pi->nread + PIPESIZE - pi->nwrite),
 				   PIPESIZE - (pi->nwrite % PIPESIZE));
@@ -71,12 +74,14 @@ int pipewrite(struct pipe *pi, uint64 addr, int n)
 
 int piperead(struct pipe *pi, uint64 addr, int n)
 {
+	// r 记录已经写的字节数
 	int r = 0;
 	uint64 size = -1;
 	struct proc *p = curr_proc();
 	if (n <= 0) {
 		panic("invalid read num");
 	}
+	// 若 pipe 可读内容为空，阻塞或者报错
 	while (pi->nread == pi->nwrite) {
 		if (pi->writeopen)
 			yield();
@@ -86,6 +91,7 @@ int piperead(struct pipe *pi, uint64 addr, int n)
 	while (r < n && size != 0) { // DOC: piperead-copy
 		if (pi->nread == pi->nwrite)
 			break;
+		// 一次读的 size 为：min(用户还剩读数量，可读内容，pipe剩余线性容量)
 		size = MIN(MIN(n - r, pi->nwrite - pi->nread),
 			   PIPESIZE - (pi->nread % PIPESIZE));
 		if (copyout(p->pagetable, addr + r,
