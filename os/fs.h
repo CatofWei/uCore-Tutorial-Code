@@ -19,7 +19,7 @@
 
 // Disk layout:
 // [ boot block | super block | inode blocks | free bit map | data blocks]
-//
+// [1 boot block | 1 super block | 13 inode blocks | 1 free bit map block | 984 data blocks]
 // mkfs computes the super block and builds an initial file system. The
 // super block describes the disk layout:
 struct superblock {
@@ -40,11 +40,14 @@ struct superblock {
 // File type
 #define T_DIR 1 // Directory
 #define T_FILE 2 // File
+#define DIR 0x040000
+#define FILE 0x100000
 
 // On-disk inode structure
 struct dinode {
 	short type; // File type
-	short pad[3];
+	short pad[2];
+	short link;
 	// LAB4: you can reduce size of pad array and add link count below,
 	//       or you can just regard a pad as link count.
 	//       But keep in mind that you'd better keep sizeof(dinode) unchanged
@@ -77,10 +80,12 @@ struct inode;
 
 void fsinit();
 int dirlink(struct inode *, char *, uint);
+int dirunlink(struct inode *, char *);
 struct inode *dirlookup(struct inode *, char *, uint *);
 struct inode *ialloc(uint, short);
 struct inode *idup(struct inode *);
 void iinit();
+struct inode *iget(uint dev, uint inum);
 void ivalid(struct inode *);
 void iput(struct inode *);
 void iunlock(struct inode *);

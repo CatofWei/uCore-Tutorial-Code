@@ -322,7 +322,7 @@ void exit(int code)
 	}
 	sched();
 }
-
+// 从进程的文件描述符表分配一个文件描述符
 int fdalloc(struct file *f)
 {
 	debugf("debugf f = %p, type = %d", f, f->type);

@@ -62,6 +62,7 @@ static void bzero(int dev, int bno)
 // Blocks.
 
 // Allocate a zeroed disk block.
+// 在设备dev中找到空闲的块，并返回块编号
 static uint balloc(uint dev)
 {
 	int b, bi, m;
@@ -69,11 +70,14 @@ static uint balloc(uint dev)
 
 	bp = 0;
 	for (b = 0; b < sb.size; b += BPB) {
+		// 读取表示第b个磁盘块的分配状态的位所在的bitmap对应的磁盘块
 		bp = bread(dev, BBLOCK(b, sb));
+		// 遍历该bitmap，找到空闲的磁盘块
 		for (bi = 0; bi < BPB && b + bi < sb.size; bi++) {
 			m = 1 << (bi % 8);
 			if ((bp->data[bi / 8] & m) == 0) { // Is block free?
 				bp->data[bi / 8] |= m; // Mark block in use.
+				//将bitmap写回磁盘
 				bwrite(bp);
 				brelse(bp);
 				bzero(dev, b + bi);
@@ -107,7 +111,7 @@ struct {
 	struct inode inode[NINODE];
 } itable;
 
-static struct inode *iget(uint dev, uint inum);
+
 
 // Allocate an inode on device dev.
 // Mark it as allocated by  giving it type `type`.
@@ -124,6 +128,7 @@ struct inode *ialloc(uint dev, short type)
 		if (dip->type == 0) { // a free inode
 			memset(dip, 0, sizeof(*dip));
 			dip->type = type;
+			dip->link = 1;
 			bwrite(bp);
 			brelse(bp);
 			return iget(dev, inum);
@@ -146,16 +151,17 @@ void iupdate(struct inode *ip)
 	dip = (struct dinode *)bp->data + ip->inum % IPB;
 	dip->type = ip->type;
 	dip->size = ip->size;
+	dip->link = ip->link;
 	// LAB4: you may need to update link count here
 	memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
 	bwrite(bp);
 	brelse(bp);
 }
-
+// 找到 inum 号 dinode 绑定的 inode，如果不存在新绑定一个，但并不实际从磁盘读取数据
 // Find the inode with number inum on device dev
 // and return the in-memory copy. Does not read
 // it from disk.
-static struct inode *iget(uint dev, uint inum)
+struct inode *iget(uint dev, uint inum)
 {
 	struct inode *ip, *empty;
 	// Is the inode already in the table?
@@ -199,6 +205,7 @@ void ivalid(struct inode *ip)
 		dip = (struct dinode *)bp->data + ip->inum % IPB;
 		ip->type = dip->type;
 		ip->size = dip->size;
+		ip->link = dip->link;
 		// LAB4: You may need to get lint count here
 		memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
 		brelse(bp);
@@ -237,6 +244,8 @@ void iput(struct inode *ip)
 
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
+// 返回ip 所对应的文件的第bn个数据块的block编号，如果不存在该数据块，则分配一个
+// 目前的实现来看，inode最多索引 12 + BSIZE/sizeof(uint) = 268个数据块=268K
 static uint bmap(struct inode *ip, uint bn)
 {
 	uint addr, *a;
@@ -268,6 +277,7 @@ static uint bmap(struct inode *ip, uint bn)
 }
 
 // Truncate inode (discard contents).
+// 清除掉这个文件的所有内容
 void itrunc(struct inode *ip)
 {
 	int i, j;
@@ -300,6 +310,7 @@ void itrunc(struct inode *ip)
 // Read data from inode.
 // If user_dst==1, then dst is a user virtual address;
 // otherwise, dst is a kernel address.
+// 从 ip 对应文件读取 [off, off+n) 这一段数据到 dst，返回实际读取的字节数
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
 	uint tot, m;
@@ -331,6 +342,7 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 // Returns the number of bytes successfully written.
 // If the return value is less than the requested n,
 // there was an error of some kind.
+//从 src处的数据写入到inode对应文件的[off,off+n)处，返回实际写入的字节数
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
 	uint tot, m;
@@ -366,6 +378,7 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 
 // Look for a directory entry in a directory.
 // If found, set *poff to byte offset of entry.
+// 在目录上搜寻name文件的inode
 struct inode *dirlookup(struct inode *dp, char *name, uint *poff)
 {
 	uint off, inum;
@@ -373,7 +386,7 @@ struct inode *dirlookup(struct inode *dp, char *name, uint *poff)
 
 	if (dp->type != T_DIR)
 		panic("dirlookup not DIR");
-
+	// 根目录的数据是一个dirent数组，保存了文件名到inode编号的映射
 	for (off = 0; off < dp->size; off += sizeof(de)) {
 		if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
 			panic("dirlookup read");
@@ -438,9 +451,30 @@ int dirlink(struct inode *dp, char *name, uint inum)
 	return 0;
 }
 
+int dirunlink(struct inode *dp, char *name)
+{
+	int off;
+	struct dirent de;
+	// Look for the dirent.
+	for (off = 0; off < dp->size; off += sizeof(de)) {
+		if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+			panic("dirlink read");
+		if (de.inum != 0 && strncmp(de.name, name, DIRSIZ) == 0)
+			break;
+	}
+	if (de.inum == 0) {
+		return -1;
+	}
+	de.inum = 0;
+	memset(de.name, 0, sizeof(de.name));
+	if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+		panic("dirlink");
+	return 0;
+}
 // LAB4: You may want to add dirunlink here
 
 //Return the inode of the root directory
+//获取根目录的inode，在nfs中，根目录的inode num固定为1
 struct inode *root_dir()
 {
 	struct inode *r = iget(ROOTDEV, ROOTINO);

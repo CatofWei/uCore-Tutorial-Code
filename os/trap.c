@@ -27,6 +27,13 @@ void trap_init()
 {
 //	 intr_on();
 	set_kerneltrap();
+	// sie寄存器控制的是s特权级的中断
+	//sstatus寄存器控制的是当处于s特权级时，cpu对各个中断的控制
+	//也就是说sie属于s特权级的中断
+	//sstatus属于s特权级
+	//所以intr_on是用来开启当cpu处于s特权级时，对s特权级中断的响应
+	//在前几章的实现中，我们都是没有开启s特权级的cpu对中断的响应，所以在内核态下不会发生时钟中断
+	//但这章我们在读写磁盘时开启了外部中断，所以需要相应处理
 	w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
 }
 
@@ -46,9 +53,12 @@ void devintr(uint64 cause)
 		// 如果发生在用户态，照常处理
 		if ((r_sstatus() & SSTATUS_SPP) == 0) {
 			yield();
+		} else{
+			printf("ignore time interrupt from kernel\n");
 		}
 		break;
 	case SupervisorExternal:
+//		printf("external interrupt\n");
 		irq = plic_claim();
 		if (irq == UART0_IRQ) {
 			// do nothing
@@ -142,7 +152,7 @@ void usertrapret()
 
 void kerneltrap()
 {
-	printf("kerneltrap\n");
+//	printf("kerneltrap\n");
 	uint64 sepc = r_sepc();
 	uint64 sstatus = r_sstatus();
 	uint64 scause = r_scause();

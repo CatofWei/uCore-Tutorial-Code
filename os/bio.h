@@ -9,10 +9,10 @@ struct buf {
 	int disk; // does disk "own" buf?
 	uint dev; // 磁盘块所在磁盘设备编号
 	uint blockno;// 磁盘块编号
-	uint refcnt;
+	uint refcnt;// 磁盘块缓存的引用计数
 	struct buf *prev; // LRU cache list
 	struct buf *next;
-	// 磁盘块内容
+	// 保存磁盘块的数据
 	uchar data[BSIZE];
 };
 

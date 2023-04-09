@@ -52,6 +52,7 @@ int load_init_app()
 {
 	struct inode *ip;
 	struct proc *p = allocproc();
+	// 初始化标准io，标准输入，输出，错误输出
 	init_stdio(p);
 	if ((ip = namei(INIT_PROC)) == 0) {
 		errorf("invalid init proc name\n");

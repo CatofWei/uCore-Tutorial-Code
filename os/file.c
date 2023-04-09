@@ -70,7 +70,9 @@ static struct inode *create(char *path, short type)
 	struct inode *ip, *dp;
 	dp = root_dir(); //Remember that the root_inode is open in this step,so it needs closing then.
 	ivalid(dp);
+	// 如果该文件已经存在，则返回其inode
 	if ((ip = dirlookup(dp, path, 0)) != 0) {
+		printf("open existed file\n");
 		warnf("create a exist file\n");
 		iput(dp); //Close the root_inode
 		ivalid(ip);
@@ -79,6 +81,8 @@ static struct inode *create(char *path, short type)
 		iput(ip);
 		return 0;
 	}
+	printf("create file\n");
+	// 否则从文件系统中获得空闲的inode
 	if ((ip = ialloc(dp->dev, type)) == 0)
 		panic("create: ialloc");
 
@@ -92,6 +96,62 @@ static struct inode *create(char *path, short type)
 	iput(dp);
 	return ip;
 }
+
+int link(char * oldPath, char * newPath) {
+	if (strncmp(oldPath, newPath, 100) == 0) {
+		return -1;
+	}
+	struct inode *din = root_dir();
+	struct inode * in = namei(oldPath);
+	printf("before link: %d\n", in->link);
+	in->link++;
+	iupdate(in);
+	dirlink(din, newPath, in->inum);
+	iput(din);
+	iput(in);
+	return 0;
+}
+
+int unlink(char * path) {
+	struct inode *din = root_dir();
+	struct inode *in = namei(path);
+	if (in == 0) {
+		return -1;
+	}
+	in->link--;
+	if (in->link == 0) {
+		itrunc(in);
+		in->type = 0;
+	}
+	iupdate(in);
+	in->valid = 0;
+	dirunlink(din, path);
+	iput(din);
+	iput(in);
+	return 0;
+}
+
+int fstat(int fd,uint64 stat) {
+	//TODO: your job is to complete the syscall
+	Stat fstat;
+	if (fd >= FD_BUFFER_SIZE || fd < 0) {
+		printf("invalid fd\n");
+		return -1;
+	}
+	fstat.dev = 0;
+	fstat.ino = curr_proc()->files[fd]->ip->inum;
+	struct inode *in = iget(ROOTDEV, fstat.ino);
+	if (in->type == T_FILE) {
+		fstat.mode = FILE;
+	} else if (in->type == T_DIR) {
+		fstat.mode = DIR;
+	}
+	fstat.nlink = in->link;
+	copyout(curr_proc()->pagetable, stat, (char *)&fstat, sizeof(Stat));
+	iput(in);
+	return 0;
+}
+
 
 //A process creates or opens a file according to its path, returning the file descriptor of the created or opened file.
 //If omode is O_CREATE, create a new file
