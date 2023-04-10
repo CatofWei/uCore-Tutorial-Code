@@ -219,7 +219,7 @@ int fork()
 	add_task(np);
 	return np->pid;
 }
-
+// 传递main函数的参数，并且将面函数的参数押入栈中
 int push_argv(struct proc *p, char **argv)
 {
 	uint64 argc, ustack[MAX_ARG_NUM + 1];
