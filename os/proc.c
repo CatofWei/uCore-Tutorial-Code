@@ -178,7 +178,9 @@ found:
 	// don't clear kstack now for exec()
 	// memset((void *)t->kstack, 0, KSTACK_SIZE);
 	// user stack
+	// 在地址空间中为新线程分配用户栈
 	t->ustack = get_thread_ustack_base_va(t);
+	// 为用户栈分配物理内存
 	if (alloc_user_res != 0) {
 		if (uvmmap(p->pagetable, t->ustack, USTACK_SIZE / PAGE_SIZE,
 			   PTE_U | PTE_R | PTE_W) < 0) {
@@ -191,6 +193,7 @@ found:
 	// trap frame
 	t->trapframe = (struct trapframe *)trapframe[p - pool][tid];
 	memset((void *)t->trapframe, 0, TRAP_PAGE_SIZE);
+	// 为线程trapframe划分虚拟地址空间和物理内存
 	if (mappages(p->pagetable, get_thread_trapframe_va(tid), TRAP_PAGE_SIZE,
 		     (uint64)t->trapframe, PTE_R | PTE_W) < 0) {
 		panic("map trapframe fail");
@@ -343,7 +346,7 @@ int fork()
 	add_task(nt);
 	return np->pid;
 }
-
+// 将main函数参数中的char *argv[]，中每个字符串押入栈中，并且将argc和argv指针赋予a0和a1
 int push_argv(struct proc *p, char **argv)
 {
 	uint64 argc, ustack[MAX_ARG_NUM + 1];

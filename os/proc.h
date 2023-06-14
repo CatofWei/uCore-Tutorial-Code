@@ -37,10 +37,10 @@ struct thread {
 	enum threadstate state; // Thread state
 	int tid; // Thread ID
 	struct proc *process;
-	uint64 ustack; // Virtual address of user stack
-	uint64 kstack; // Virtual address of kernel stack
-	struct trapframe *trapframe; // data page for trampoline.S
-	struct context context; // swtch() here to run process
+	uint64 ustack; // Virtual address of user stack 在用户空间
+	uint64 kstack; // Virtual address of kernel stack 在内核空间
+	struct trapframe *trapframe; // data page for trampoline.S,这里存的是在内核地址空间的地址，需要用到在用户空间的地址的时候需要自己转换
+	struct context context; // swtch() here to run process，保存在内核态间任务切换的上下文
 	uint64 exit_code;
 };
 
